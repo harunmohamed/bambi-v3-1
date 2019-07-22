@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import secrets
 from PIL import Image
 from flask import render_template, url_for, flash, redirect, request, abort
@@ -8,6 +9,12 @@ from bambiv3.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_mail import Message
 
+
+@app.before_request
+def before_request():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.utcnow()
+        db.session.commit()
 
 @app.route('/')
 @app.route('/home', methods=['GET', 'POST'])
@@ -21,9 +28,10 @@ def home():
 		return redirect(url_for('home'))
 	page = request.args.get('page', 1, type=int)
 	posts = Post.query.order_by(Post.date_posted.desc()).paginate(per_page=5, page=page)
+	users = User.query.all()
 	if current_user.is_authenticated:
 		image_file = url_for('static', filename='profile_pics/' + current_user.image_file)
-		return render_template('home.html', title="Home", form=form, posts=posts, image_file=image_file)
+		return render_template('home.html', title="Home", form=form, posts=posts, image_file=image_file, users=users)
 	else:
 		return redirect(url_for('login'))
 		#return render_template('home.html', title="Home", posts=posts)
@@ -33,9 +41,22 @@ def home():
 def about():
 	return render_template('about.html', title="About")
 
+@app.route('/market')
+def market():
+	return render_template('market.html', title="Market")
+
+@app.route('/inbox')
+def inbox():
+	return render_template('inbox.html', title="Inbox")
+
 @app.route('/discover')
 def discover():
-	return render_template('discover.html')
+	users = User.query.all()
+	return render_template('discover.html', users=users)
+
+@app.route('/explore')
+def explore():
+	return render_template('explore.html', title="Explore")
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
